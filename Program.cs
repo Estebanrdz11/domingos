@@ -1,42 +1,88 @@
 ﻿using Spectre.Console;
-decimal monto = AnsiConsole.Ask<decimal>("Ingrese el monto del préstamo:");
-decimal tasaAnual = AnsiConsole.Ask<decimal>("Ingrese la tasa de interés anual (%):");
-int meses = AnsiConsole.Ask<int>("Ingrese el plazo del préstamo (meses):");
+using GymManager.Models;
+using GymManager.Services;
 
-decimal tasaMensual = (tasaAnual / 12) / 100;
+MiembroService servicio = new();
 
-decimal cuota = monto *
-    (tasaMensual * (decimal)Math.Pow((double)(1 + tasaMensual), meses))
-    / ((decimal)Math.Pow((double)(1 + tasaMensual), meses) - 1);
+bool salir = false;
 
-decimal saldo = monto;
-
-var tabla = new Table();
-
-tabla.Border(TableBorder.Rounded);
-
-tabla.AddColumn("Cuota");
-tabla.AddColumn("Pago");
-tabla.AddColumn("Interés");
-tabla.AddColumn("Abono Capital");
-tabla.AddColumn("Saldo");
-
-for (int i = 1; i <= meses; i++)
+while (!salir)
 {
-    decimal interes = saldo * tasaMensual;
-    decimal abonoCapital = cuota - interes;
-    saldo -= abonoCapital;
+    AnsiConsole.Clear();
 
-    if (saldo < 0)
-        saldo = 0;
+    var opcion = AnsiConsole.Prompt(
+        new SelectionPrompt<string>()
+            .Title("[cyan]=== SISTEMA DE GIMNASIO ===[/]")
+            .AddChoices(new[]
+            {
+                "Listar miembros",
+                "Registrar miembro",
+                "Eliminar miembro",
+                "Salir"
+            }));
 
-    tabla.AddRow(
-        i.ToString(),
-        cuota.ToString("N2"),
-        interes.ToString("N2"),
-        abonoCapital.ToString("N2"),
-        saldo.ToString("N2")
-    );
+    switch (opcion)
+    {
+        case "Listar miembros":
+
+            var tabla = new Table();
+
+            tabla.Border(TableBorder.Rounded);
+
+            tabla.AddColumn("ID");
+            tabla.AddColumn("Nombre");
+            tabla.AddColumn("Edad");
+            tabla.AddColumn("Plan");
+
+            foreach (var miembro in servicio.ObtenerTodos())
+            {
+                tabla.AddRow(
+                    miembro.Id.ToString(),
+                    miembro.Nombre,
+                    miembro.Edad.ToString(),
+                    miembro.Plan);
+            }
+
+            AnsiConsole.Write(tabla);
+            Console.ReadKey();
+
+            break;
+
+        case "Registrar miembro":
+
+            int id = AnsiConsole.Ask<int>("ID:");
+
+            string nombre = AnsiConsole.Ask<string>("Nombre:");
+
+            int edad = AnsiConsole.Ask<int>("Edad:");
+
+            string plan = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                .Title("Seleccione un plan")
+                .AddChoices("Mensual", "Trimestral", "Anual"));
+
+            servicio.Agregar(new Miembro(id, nombre, edad, plan));
+
+            AnsiConsole.MarkupLine("[green]Miembro registrado correctamente.[/]");
+            Console.ReadKey();
+
+            break;
+
+        case "Eliminar miembro":
+
+            int eliminar = AnsiConsole.Ask<int>("Digite el ID del miembro:");
+
+            if (servicio.Eliminar(eliminar))
+                AnsiConsole.MarkupLine("[green]Miembro eliminado correctamente.[/]");
+            else
+                AnsiConsole.MarkupLine("[red]No existe un miembro con ese ID.[/]");
+
+            Console.ReadKey();
+
+            break;
+
+        case "Salir":
+            salir = true;
+            break;
+    }
 }
-
-AnsiConsole.Write(tabla);
